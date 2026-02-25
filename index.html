@@ -46,16 +46,21 @@
   .copy-btn.pink{background:rgba(255,45,110,.15);border-color:rgba(255,45,110,.4);color:var(--blush);}
   .copy-btn.pink:hover{background:rgba(255,45,110,.3);}
   .shortening-status{font-size:.72rem;color:rgba(255,255,255,.3);margin-top:8px;min-height:1em;}
-  .name-pill-list{display:flex;flex-wrap:wrap;gap:8px;min-height:38px;margin-bottom:10px;}
-  .name-pill{background:rgba(255,45,110,.15);border:1px solid rgba(255,45,110,.4);border-radius:99px;padding:7px 14px 7px 16px;font-size:.83rem;color:var(--cream);display:flex;align-items:center;gap:8px;animation:popIn .2s cubic-bezier(.16,1,.3,1);}
-  @keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
-  .pill-remove{background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:1.2rem;line-height:1;padding:0;display:flex;align-items:center;transition:color .2s;}
-  .pill-remove:hover{color:var(--rose);}
-  .add-name-row{display:flex;gap:10px;}
-  .add-name-row input{flex:1;}
-  .btn-add{background:rgba(255,45,110,.2);border:1px solid rgba(255,45,110,.5);color:var(--rose);border-radius:12px;padding:0;width:50px;font-size:1.6rem;cursor:pointer;transition:background .2s,transform .1s;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .btn-add:hover{background:rgba(255,45,110,.35);transform:scale(1.05);}
-  .btn-add:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+  /* Crush rows */
+  .crush-rows{display:flex;flex-direction:column;gap:10px;margin-bottom:4px;}
+  .crush-row{display:flex;align-items:center;gap:8px;}
+  .crush-num{font-family:'Playfair Display',serif;color:var(--rose);font-size:1rem;width:20px;flex-shrink:0;text-align:center;opacity:.7;}
+  .crush-row input[type=text]{flex:1;min-width:0;}
+  .crush-row input[type=number]{width:72px;flex-shrink:0;-moz-appearance:textfield;}
+  .crush-row input[type=number]::-webkit-inner-spin-button,
+  .crush-row input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+  .crush-row input.filled{border-color:rgba(255,45,110,.6);background:rgba(255,45,110,.08);}
+  .crush-cols{display:flex;gap:6px;flex:1;min-width:0;}
+  .col-label{font-size:.6rem;color:rgba(255,255,255,.25);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;}
+  .crush-field{display:flex;flex-direction:column;flex:1;min-width:0;}
+  .crush-field.age-field{width:70px;flex:none;}
+  .progress-hint{font-size:.72rem;color:rgba(255,126,179,.5);margin-top:8px;text-align:center;min-height:1em;transition:color .3s;}
+  .progress-hint.complete{color:var(--green);}
   .msg{font-size:.77rem;margin-top:7px;min-height:1.2em;}
   .msg.error{color:var(--rose);}
   /* Loading */
@@ -151,12 +156,11 @@
       <input type="text" id="yourName" placeholder="Enter your name…" maxlength="30" autocomplete="off">
     </div>
     <div class="input-group">
-      <label>Add Crushes / Partners <span style="color:rgba(255,255,255,.3);font-size:.62rem;text-transform:none;letter-spacing:0">(up to 5)</span></label>
-      <div class="name-pill-list" id="pillList"></div>
-      <div class="add-name-row">
-        <input type="text" id="crushInput" placeholder="Type a name then tap +" maxlength="30" autocomplete="off">
-        <button class="btn-add" id="btnAdd" type="button">+</button>
+      <label>Your 5 Crushes / Partners</label>
+      <div class="crush-rows" id="crushRows">
+        <!-- rows injected by JS -->
       </div>
+      <div class="progress-hint" id="progressHint">Fill in all 5 names and ages to continue</div>
       <div class="msg error" id="vErr"></div>
     </div>
     <button class="btn-main" id="btnCalc" type="button">✨ Calculate My Matches ✨</button>
@@ -341,77 +345,138 @@
   function initVictim(){
     getCfg();
 
-    var pillList   = el('pillList');
-    var crushInput = el('crushInput');
-    var btnAdd     = el('btnAdd');
-    var btnCalc    = el('btnCalc');
-    var btnRestart = el('btnRestart');
-    var vErr       = el('vErr');
+    var TOTAL    = 5;
+    var crushRows = el('crushRows');
+    var hint      = el('progressHint');
+    var vErr      = el('vErr');
 
-    function renderPills(){
-      pillList.innerHTML = '';
-      names.forEach(function(n, i){
-        var pill = document.createElement('div');
-        pill.className = 'name-pill';
+    /* Build 5 static rows */
+    for(var r = 0; r < TOTAL; r++){
+      var row = document.createElement('div');
+      row.className = 'crush-row';
 
-        var span = document.createElement('span');
-        span.textContent = n;
+      var num = document.createElement('span');
+      num.className = 'crush-num';
+      num.textContent = (r + 1) + '.';
 
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'pill-remove';
-        btn.textContent = '×';
-        btn.setAttribute('data-index', i);
-        btn.addEventListener('click', function(){
-          names.splice(parseInt(this.getAttribute('data-index')), 1);
-          renderPills();
+      var nameField = document.createElement('div');
+      nameField.className = 'crush-field';
+      var nameLabel = document.createElement('div');
+      nameLabel.className = 'col-label';
+      nameLabel.textContent = 'Name';
+      var nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'crush-name';
+      nameInput.placeholder = 'e.g. Alex';
+      nameInput.maxLength = 30;
+      nameInput.autocomplete = 'off';
+      nameField.appendChild(nameLabel);
+      nameField.appendChild(nameInput);
+
+      var ageField = document.createElement('div');
+      ageField.className = 'crush-field age-field';
+      var ageLabel = document.createElement('div');
+      ageLabel.className = 'col-label';
+      ageLabel.textContent = 'Age';
+      var ageInput = document.createElement('input');
+      ageInput.type = 'number';
+      ageInput.className = 'crush-age';
+      ageInput.placeholder = '00';
+      ageInput.min = 1;
+      ageInput.max = 99;
+      ageField.appendChild(ageLabel);
+      ageField.appendChild(ageInput);
+
+      row.appendChild(num);
+      row.appendChild(nameField);
+      row.appendChild(ageField);
+      crushRows.appendChild(row);
+
+      /* live highlight + hint update */
+      nameInput.addEventListener('input', updateHint);
+      ageInput.addEventListener('input', updateHint);
+    }
+
+    function getEntries(){
+      var nameInputs = crushRows.querySelectorAll('.crush-name');
+      var ageInputs  = crushRows.querySelectorAll('.crush-age');
+      var entries = [];
+      for(var i = 0; i < TOTAL; i++){
+        entries.push({
+          name: nameInputs[i].value.trim(),
+          age:  ageInputs[i].value.trim()
         });
-
-        pill.appendChild(span);
-        pill.appendChild(btn);
-        pillList.appendChild(pill);
-      });
-      btnAdd.disabled = names.length >= 5;
+      }
+      return entries;
     }
 
-    function addName(){
-      var val = crushInput.value.trim();
+    function countComplete(entries){
+      return entries.filter(function(e){ return e.name && e.age; }).length;
+    }
+
+    function updateHint(){
+      var entries  = getEntries();
+      var done     = countComplete(entries);
+      var remaining = TOTAL - done;
+      if(remaining === 0){
+        hint.textContent = '✅ All 5 filled in — ready to calculate!';
+        hint.className = 'progress-hint complete';
+      } else {
+        hint.textContent = remaining + ' more to go…';
+        hint.className = 'progress-hint';
+      }
+      /* highlight filled rows */
+      var nameInputs = crushRows.querySelectorAll('.crush-name');
+      var ageInputs  = crushRows.querySelectorAll('.crush-age');
+      for(var i = 0; i < TOTAL; i++){
+        var filled = nameInputs[i].value.trim() && ageInputs[i].value.trim();
+        nameInputs[i].className = 'crush-name' + (filled ? ' filled' : '');
+        ageInputs[i].className  = 'crush-age'  + (filled ? ' filled' : '');
+      }
+    }
+
+    el('btnCalc').addEventListener('click', function(e){
+      e.preventDefault();
       vErr.textContent = '';
-      if(!val) return;
-      if(names.length >= 5){ vErr.textContent = 'Maximum 5 names allowed!'; return; }
-      var lower = names.map(function(x){ return x.toLowerCase(); });
-      if(lower.indexOf(val.toLowerCase()) >= 0){ vErr.textContent = 'That name is already added!'; return; }
-      names.push(val);
-      crushInput.value = '';
-      crushInput.focus();
-      renderPills();
-    }
-
-    btnAdd.addEventListener('click', function(e){
-      e.preventDefault();
-      addName();
-    });
-
-    crushInput.addEventListener('keydown', function(e){
-      if(e.key === 'Enter'){ e.preventDefault(); addName(); }
-    });
-
-    btnCalc.addEventListener('click', function(e){
-      e.preventDefault();
       var yourName = el('yourName').value.trim();
-      vErr.textContent = '';
       if(!yourName){ vErr.textContent = 'Please enter your name first!'; return; }
-      if(names.length === 0){ vErr.textContent = 'Please add at least one crush or partner!'; return; }
+
+      var entries = getEntries();
+      var incomplete = [];
+      entries.forEach(function(entry, i){
+        if(!entry.name || !entry.age) incomplete.push(i + 1);
+      });
+      if(incomplete.length > 0){
+        vErr.textContent = 'Please complete row' + (incomplete.length > 1 ? 's' : '') + ' ' + incomplete.join(', ') + ' (name and age required).';
+        return;
+      }
+
+      /* validate ages are numbers */
+      var badAge = false;
+      entries.forEach(function(entry){
+        var a = parseInt(entry.age, 10);
+        if(isNaN(a) || a < 1 || a > 99) badAge = true;
+      });
+      if(badAge){ vErr.textContent = 'Please enter valid ages (1–99).'; return; }
+
+      /* check duplicate names */
+      var lowerNames = entries.map(function(e){ return e.name.toLowerCase(); });
+      var unique = lowerNames.filter(function(v, i, a){ return a.indexOf(v) === i; });
+      if(unique.length < TOTAL){ vErr.textContent = 'Each crush must have a unique name!'; return; }
+
+      /* save entries globally */
+      names = entries;
       startLoading();
     });
 
-    btnRestart.addEventListener('click', function(e){
+    el('btnRestart').addEventListener('click', function(e){
       e.preventDefault();
       names = [];
       el('yourName').value = '';
-      crushInput.value = '';
       vErr.textContent = '';
-      renderPills();
+      crushRows.querySelectorAll('input').forEach(function(inp){ inp.value = ''; inp.className = inp.className.replace(' filled',''); });
+      hint.textContent = 'Fill in all 5 names and ages to continue';
+      hint.className = 'progress-hint';
       show('victimView');
     });
   }
@@ -421,15 +486,16 @@
     var fill   = el('mFill');
     var pctEl  = el('mPct');
     var lname  = el('loadingName');
-    var scores = assignScores(names);
+    var scores = assignScores(names); /* names is now [{name,age},...] */
     var idx    = 0;
 
     function nextName(){
       if(idx >= names.length){ setTimeout(function(){ showResults(scores); }, 700); return; }
-      var n      = names[idx];
-      var target = scores[n];
+      var entry  = names[idx];
+      var key    = entry.name;
+      var target = scores[key];
       var cur    = 0;
-      lname.textContent = 'Analyzing "' + n + '"…';
+      lname.textContent = 'Analyzing "' + key + '" (age ' + entry.age + ')…';
       fill.style.width = '0%'; pctEl.textContent = '0%';
       var iv = setInterval(function(){
         if(cur < target){
@@ -447,12 +513,13 @@
     saveResponse();
   }
 
-  function assignScores(nameList){
+  /* names = [{name, age}, ...] */
+  function assignScores(entries){
     var scores = {}, used = {};
-    nameList.forEach(function(n){
+    entries.forEach(function(e){
       var v;
       do { v = Math.floor(60 + Math.random() * 39); } while(used[v]);
-      used[v] = true; scores[n] = v;
+      used[v] = true; scores[e.name] = v;
     });
     return scores;
   }
@@ -463,18 +530,23 @@
     sorted.sort(function(a,b){ return b[1]-a[1]; });
 
     var topName = sorted[0][0], topPct = sorted[0][1];
-    el('winnerName').textContent = topName;
+    /* find age of winner */
+    var winnerEntry = names.filter(function(e){ return e.name === topName; })[0];
+    var winnerAge   = winnerEntry ? ', age ' + winnerEntry.age : '';
+    el('winnerName').textContent = topName + winnerAge;
     el('winnerPct').innerHTML    = topPct + '<small>%</small>';
 
     var ol = el('othersList');
     ol.innerHTML = '';
     sorted.slice(1).forEach(function(item, i){
       var n = item[0], p = item[1];
+      var entry = names.filter(function(e){ return e.name === n; })[0];
+      var ageStr = entry ? ' <span style="font-size:.72rem;color:rgba(255,255,255,.35)">age ' + entry.age + '</span>' : '';
       var row = document.createElement('div');
       row.className = 'other-row';
       row.innerHTML =
         '<div class="other-rank">'+(i+2)+'</div>'+
-        '<div class="other-name">'+n+'</div>'+
+        '<div class="other-name">'+n+ageStr+'</div>'+
         '<div class="other-bar-wrap"><div class="other-bar" style="width:'+p+'%"></div></div>'+
         '<div class="other-pct">'+p+'%</div>';
       ol.appendChild(row);
@@ -484,17 +556,17 @@
 
   function saveResponse(){
     var c = getCfg(); if(!c) return;
-    var yn = (el('yourName').value || '').trim() || 'Anonymous';
-    var snapNames = names.slice();
+    var yn      = (el('yourName').value || '').trim() || 'Anonymous';
+    var snapCrushes = names.map(function(e){ return {name: e.name, age: e.age}; });
     fetch(JSONBIN+'/b/'+c.binId+'/latest', {headers:{'X-Master-Key':c.apiKey}})
     .then(function(r){ return r.json(); })
     .then(function(data){
       var existing = (data.record && data.record.responses) ? data.record.responses : [];
-      existing.push({victimName:yn, crushes:snapNames, timestamp:new Date().toLocaleString()});
+      existing.push({ victimName: yn, crushes: snapCrushes, timestamp: new Date().toLocaleString() });
       return fetch(JSONBIN+'/b/'+c.binId, {
         method:'PUT',
         headers:{'Content-Type':'application/json','X-Master-Key':c.apiKey},
-        body:JSON.stringify({prankerName:c.name, responses:existing})
+        body: JSON.stringify({ prankerName: c.name, responses: existing })
       });
     })
     .catch(function(){}); /* silent */
@@ -523,7 +595,11 @@
         var card = document.createElement('div');
         card.className = 'response-card';
         card.style.animationDelay = (i*.08)+'s';
-        var pills = r.crushes.map(function(n){ return '<span class="rc-pill">'+n+'</span>'; }).join('');
+        var pills = r.crushes.map(function(c){
+          /* support both old plain-string saves and new {name,age} saves */
+          var label = (typeof c === 'object') ? c.name + ' <span style="opacity:.6">age ' + c.age + '</span>' : c;
+          return '<span class="rc-pill">'+label+'</span>';
+        }).join('');
         card.innerHTML =
           '<div class="rc-name">👤 '+r.victimName+'</div>'+
           '<div style="font-size:.72rem;color:rgba(255,255,255,.3)">Their crushes / partners:</div>'+
